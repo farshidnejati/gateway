@@ -9,7 +9,14 @@ use Larabookir\Gateway\PortInterface;
 
 class Payline extends PortAbstract implements PortInterface
 {
-	/**
+    public function __construct(User $user)
+    {
+        parent::__construct();
+        $this->user = $user;
+//        $this->model = $user->;
+    }
+
+    /**
 	 * Address of main CURL server
 	 *
 	 * @var string
