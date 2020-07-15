@@ -29,6 +29,8 @@ class Enum
             'TRANSACTION_SUCCEED_TEXT',
             'TRANSACTION_FAILED',
             'TRANSACTION_FAILED_TEXT',
+            'ZARINPAL_SERVERS',
+            'ZARINPAL_TYPES',
         ];
         
         if(function_exists('array_except'))
@@ -55,4 +57,8 @@ class Enum
 	const TRANSACTION_FAILED = 'FAILED';
 	const TRANSACTION_FAILED_TEXT = 'عملیات پرداخت با خطا مواجه شد.';
 
+	
+	
+	const ZARINPAL_SERVERS = ['germany','iran','test'];
+	const ZARINPAL_TYPES = ['zarin-gate','normal'];
 }
