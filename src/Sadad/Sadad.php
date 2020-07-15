@@ -2,13 +2,21 @@
 
 namespace Larabookir\Gateway\Sadad;
 
+use App\User;
 use SoapClient;
 use Larabookir\Gateway\PortAbstract;
 use Larabookir\Gateway\PortInterface;
 
 class Sadad extends PortAbstract implements PortInterface
 {
-	/**
+    public function __construct(User $user)
+    {
+        parent::__construct();
+        $this->user = $user;
+        $this->model = $user->sadadGateway;
+    }
+
+    /**
 	 * Url of sadad gateway web service
 	 *
 	 * @var string
@@ -82,7 +90,7 @@ class Sadad extends PortAbstract implements PortInterface
 	function getCallback()
 	{
 		if (!$this->callbackUrl)
-			$this->callbackUrl = $this->config->get('gateway.sadad.callback-url');
+			$this->callbackUrl = $this->model->callback_url;
 
 		return $this->makeCallback($this->callbackUrl, ['transaction_id' => $this->transactionId()]);
 	}
@@ -104,11 +112,11 @@ class Sadad extends PortAbstract implements PortInterface
 			$soap = new SoapClient($this->serverUrl);
 
 			$response = $soap->PaymentUtility(
-				$this->config->get('gateway.sadad.merchant'),
+                $this->model->merchant,
 				$this->amount,
 				$this->transactionId(),
-				$this->config->get('gateway.sadad.transactionKey'),
-				$this->config->get('gateway.sadad.terminalId'),
+                $this->model->transactionKey,
+                $this->model->terminalId,
 				$this->getCallback()
 			);
 
@@ -142,9 +150,9 @@ class Sadad extends PortAbstract implements PortInterface
 
 			$result = $soap->CheckRequestStatusResult(
 				$this->transactionId(),
-				$this->config->get('gateway.sadad.merchant'),
-				$this->config->get('gateway.sadad.terminalId'),
-				$this->config->get('gateway.sadad.transactionKey'),
+                $this->model->merchant,
+                $this->model->terminalId,
+                $this->model->transactionKey,
 				$this->refId(),
 				$this->amount
 			);

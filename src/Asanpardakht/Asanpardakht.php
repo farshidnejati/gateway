@@ -2,13 +2,22 @@
 
 namespace Larabookir\Gateway\Asanpardakht;
 
+use App\User;
 use Illuminate\Support\Facades\Request;
-use SoapClient;
 use Larabookir\Gateway\PortAbstract;
 use Larabookir\Gateway\PortInterface;
+use SoapClient;
 
 class Asanpardakht extends PortAbstract implements PortInterface
 {
+
+    public function __construct(User $user)
+    {
+        parent::__construct();
+        $this->user = $user;
+        $this->model = $user->asanPardakhtGateway;
+    }
+    
     /**
      * Address of main SOAP server
      *
@@ -22,7 +31,6 @@ class Asanpardakht extends PortAbstract implements PortInterface
     public function set($amount)
     {
         $this->amount = $amount;
-
         return $this;
     }
 
@@ -37,53 +45,6 @@ class Asanpardakht extends PortAbstract implements PortInterface
     }
 
     /**
-     * {@inheritdoc}
-     */
-    public function redirect()
-    {
-
-        return view('gateway::asan-pardakht-redirector')->with([
-            'refId' => $this->refId
-        ]);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function verify($transaction)
-    {
-        parent::verify($transaction);
-
-        $this->userPayment();
-        $this->verifyAndSettlePayment();
-        return $this;
-    }
-
-    /**
-     * Sets callback url
-     * @param $url
-     */
-    function setCallback($url)
-    {
-        $this->callbackUrl = $url;
-        return $this;
-    }
-
-    /**
-     * Gets callback url
-     * @return string
-     */
-    function getCallback()
-    {
-        if (!$this->callbackUrl)
-            $this->callbackUrl = $this->config->get('gateway.asanpardakht.callback-url');
-
-        $url = $this->makeCallback($this->callbackUrl, ['transaction_id' => $this->transactionId()]);
-
-        return $url;
-    }
-
-    /**
      * Send pay request to server
      *
      * @return void
@@ -94,8 +55,8 @@ class Asanpardakht extends PortAbstract implements PortInterface
     {
         $this->newTransaction();
 
-        $username = $this->config->get('gateway.asanpardakht.username');
-        $password = $this->config->get('gateway.asanpardakht.password');
+        $username = $this->model->username;
+        $password = $this->model->password;
         $orderId = $this->transactionId();
         $price = $this->amount;
         $localDate = date("Ymd His");
@@ -105,7 +66,7 @@ class Asanpardakht extends PortAbstract implements PortInterface
 
         $encryptedRequest = $this->encrypt($req);
         $params = array(
-            'merchantConfigurationID' => $this->config->get('gateway.asanpardakht.merchantConfigId'),
+            'merchantConfigurationID' => $this->model->merchantConfigId,
             'encryptedRequest' => $encryptedRequest
         );
 
@@ -131,6 +92,71 @@ class Asanpardakht extends PortAbstract implements PortInterface
         $this->transactionSetRefId();
     }
 
+    /**
+     * Gets callback url
+     * @return string
+     */
+    function getCallback()
+    {
+        if (!$this->callbackUrl)
+            $this->callbackUrl = $this->model->callback_url;
+
+        $url = $this->makeCallback($this->callbackUrl, ['transaction_id' => $this->transactionId()]);
+
+        return $url;
+    }
+
+    /**
+     * Encrypt string by key and iv from config
+     *
+     * @param string $string
+     * @return string
+     */
+    private function encrypt($string = "")
+    {
+
+        $key = $this->model->key;
+        $iv = $this->model->iv;
+
+        try {
+
+            $soap = new SoapClient("https://services.asanpardakht.net/paygate/internalutils.asmx?WSDL");
+            $params = array(
+                'aesKey' => $key,
+                'aesVector' => $iv,
+                'toBeEncrypted' => $string
+            );
+
+            $response = $soap->EncryptInAES($params);
+            return $response->EncryptInAESResult;
+
+        } catch (\SoapFault $e) {
+            return "";
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function redirect()
+    {
+
+        return view('gateway::asan-pardakht-redirector')->with([
+            'refId' => $this->refId
+        ]);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function verify($transaction)
+    {
+        parent::verify($transaction);
+
+        $this->userPayment();
+        $this->verifyAndSettlePayment();
+        return $this;
+    }
 
     /**
      * Check user payment
@@ -169,6 +195,33 @@ class Asanpardakht extends PortAbstract implements PortInterface
         throw new AsanpardakhtException($ResCode);
     }
 
+    /**
+     * Decrypt string by key and iv from config
+     *
+     * @param string $string
+     * @return string
+     */
+    private function decrypt($string = "")
+    {
+        $key = $this->model->key;
+        $iv = $this->model->iv;
+
+        try {
+
+            $soap = new SoapClient("https://services.asanpardakht.net/paygate/internalutils.asmx?WSDL");
+            $params = array(
+                'aesKey' => $key,
+                'aesVector' => $iv,
+                'toBeDecrypted' => $string
+            );
+
+            $response = $soap->DecryptInAES($params);
+            return $response->DecryptInAESResult;
+
+        } catch (\SoapFault $e) {
+            return "";
+        }
+    }
 
     /**
      * Verify and settle user payment from bank server
@@ -181,12 +234,12 @@ class Asanpardakht extends PortAbstract implements PortInterface
     protected function verifyAndSettlePayment()
     {
 
-        $username = $this->config->get('gateway.asanpardakht.username');
-        $password = $this->config->get('gateway.asanpardakht.password');
+        $username = $this->model->username;
+        $password = $this->model->password;
 
         $encryptedCredintials = $this->encrypt("{$username},{$password}");
         $params = array(
-            'merchantConfigurationID' => $this->config->get('gateway.asanpardakht.merchantConfigId'),
+            'merchantConfigurationID' => $this->model->merchantConfigId,
             'encryptedCredentials' => $encryptedCredintials,
             'payGateTranID' => $this->trackingCode
         );
@@ -228,64 +281,14 @@ class Asanpardakht extends PortAbstract implements PortInterface
         return true;
     }
 
-
-
     /**
-     * Encrypt string by key and iv from config
-     *
-     * @param string $string
-     * @return string
+     * Sets callback url
+     * @param $url
      */
-    private function encrypt($string = "")
+    function setCallback($url)
     {
-
-        $key = $this->config->get('gateway.asanpardakht.key');
-        $iv = $this->config->get('gateway.asanpardakht.iv');
-
-        try {
-
-            $soap = new SoapClient("https://services.asanpardakht.net/paygate/internalutils.asmx?WSDL");
-            $params = array(
-                'aesKey' => $key,
-                'aesVector' => $iv,
-                'toBeEncrypted' => $string
-            );
-
-            $response = $soap->EncryptInAES($params);
-            return $response->EncryptInAESResult;
-
-        } catch (\SoapFault $e) {
-            return "";
-        }
-    }
-
-
-    /**
-     * Decrypt string by key and iv from config
-     *
-     * @param string $string
-     * @return string
-     */
-    private function decrypt($string = "")
-    {
-        $key = $this->config->get('gateway.asanpardakht.key');
-        $iv = $this->config->get('gateway.asanpardakht.iv');
-
-        try {
-
-            $soap = new SoapClient("https://services.asanpardakht.net/paygate/internalutils.asmx?WSDL");
-            $params = array(
-                'aesKey' => $key,
-                'aesVector' => $iv,
-                'toBeDecrypted' => $string
-            );
-
-            $response = $soap->DecryptInAES($params);
-            return $response->DecryptInAESResult;
-
-        } catch (\SoapFault $e) {
-            return "";
-        }
+        $this->callbackUrl = $url;
+        return $this;
     }
 
 }

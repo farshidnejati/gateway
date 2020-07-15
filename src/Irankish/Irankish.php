@@ -2,6 +2,7 @@
 
 namespace Larabookir\Gateway\Irankish;
 
+use App\User;
 use DateTime;
 use Illuminate\Support\Facades\Request;
 use Larabookir\Gateway\Enum;
@@ -11,6 +12,13 @@ use Larabookir\Gateway\PortInterface;
 
 class Irankish extends PortAbstract implements PortInterface
 {
+    public function __construct(User $user)
+    {
+        parent::__construct();
+        $this->user = $user;
+        $this->model = $user->irankishGateway;
+    }
+
     /**
      * Address of main SOAP server
      *
@@ -51,7 +59,7 @@ class Irankish extends PortAbstract implements PortInterface
     {
         $gateUrl     = $this->gateUrl;
         $token      = $this->refId;
-        $merchantId = $this->config->get('gateway.irankish.merchantId');
+        $merchantId = $this->model->merchantId;
 
         return view('gateway::irankish-redirector')->with(compact('token', 'merchantId','gateUrl'));
     }
@@ -87,7 +95,7 @@ class Irankish extends PortAbstract implements PortInterface
     function getCallback()
     {
         if (!$this->callbackUrl) {
-            $this->callbackUrl = $this->config->get('gateway.irankish.callback-url');
+            $this->callbackUrl = $this->model->callback_url;
         }
 
         return $this->makeCallback($this->callbackUrl, ['transaction_id' => $this->transactionId()]);
@@ -108,7 +116,7 @@ class Irankish extends PortAbstract implements PortInterface
 
         $fields = [
             'amount'           => $this->amount,
-            'merchantId'       => $this->config->get('gateway.irankish.merchantId'),
+            'merchantId'       => $this->model->merchantId,
             'invoiceNo'        => $this->transactionId(),
             'paymentId'        => $this->getCustomInvoiceNo(),
             'revertURL'        => $this->getCallback(),
@@ -116,7 +124,7 @@ class Irankish extends PortAbstract implements PortInterface
         ];
 
         try {
-            $soap     = new SoapClient($this->serverUrl, ['soap_version' => SOAP_1_1]);
+            $soap = new SoapClient($this->serverUrl, ['soap_version' => SOAP_1_1]);
             $response = $soap->MakeToken($fields);
 
         } catch (\SoapFault $e) {
@@ -171,9 +179,9 @@ class Irankish extends PortAbstract implements PortInterface
     {
         $fields = [
             'token'       => $this->refId(),
-            'merchantId'  => $this->config->get('gateway.irankish.merchantId'),
+            'merchantId'  => $this->model->merchantId,
             'referenceNumber' => $this->trackingCode(),
-            'sha1key'         => $this->config->get('gateway.irankish.sha1key')
+            'sha1key'         => $this->model->sha1key
         ];
 
         try {

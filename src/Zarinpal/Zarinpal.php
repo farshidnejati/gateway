@@ -2,317 +2,323 @@
 
 namespace Larabookir\Gateway\Zarinpal;
 
-use DateTime;
+use App\User;
 use Illuminate\Support\Facades\Request;
 use Larabookir\Gateway\Enum;
-use SoapClient;
+use Larabookir\Gateway\Models\ZarinpalGateway;
 use Larabookir\Gateway\PortAbstract;
 use Larabookir\Gateway\PortInterface;
+use SoapClient;
 
 class Zarinpal extends PortAbstract implements PortInterface
 {
-	/**
-	 * Address of germany SOAP server
-	 *
-	 * @var string
-	 */
-	protected $germanyServer = 'https://de.zarinpal.com/pg/services/WebGate/wsdl';
+    public function __construct(User $user)
+    {
+        parent::__construct();
+        $this->user = $user;
+        $this->model = $user->zarinpalGateway;
+    }
 
-	/**
-	 * Address of iran SOAP server
-	 *
-	 * @var string
-	 */
-	protected $iranServer = 'https://ir.zarinpal.com/pg/services/WebGate/wsdl';
-    
     /**
-	 * Address of sandbox SOAP server
-	 *
-	 * @var string
-	 */
-	protected $sandboxServer = 'https://sandbox.zarinpal.com/pg/services/WebGate/wsdl';
-
-	/**
-	 * Address of main SOAP server
-	 *
-	 * @var string
-	 */
-	protected $serverUrl;
-
-	/**
-	 * Payment Description
-	 *
-	 * @var string
-	 */
-	protected $description;
-
-	/**
-	 * Payer Email Address
-	 *
-	 * @var string
-	 */
-	protected $email;
-
-	/**
-	 * Payer Mobile Number
-	 *
-	 * @var string
-	 */
-	protected $mobileNumber;
-
-	/**
-	 * Address of gate for redirect
-	 *
-	 * @var string
-	 */
-	protected $gateUrl = 'https://www.zarinpal.com/pg/StartPay/';
-    
+     * Address of germany SOAP server
+     *
+     * @var string
+     */
+    protected $germanyServer = 'https://de.zarinpal.com/pg/services/WebGate/wsdl';
     /**
-	 * Address of sandbox gate for redirect
-	 *
-	 * @var string
-	 */
-	protected $sandboxGateUrl = 'https://sandbox.zarinpal.com/pg/StartPay/';
+     * Address of iran SOAP server
+     *
+     * @var string
+     */
+    protected $iranServer = 'https://ir.zarinpal.com/pg/services/WebGate/wsdl';
+    /**
+     * Address of sandbox SOAP server
+     *
+     * @var string
+     */
+    protected $sandboxServer = 'https://sandbox.zarinpal.com/pg/services/WebGate/wsdl';
+    /**
+     * Address of main SOAP server
+     *
+     * @var string
+     */
+    protected $serverUrl;
+    /**
+     * Payment Description
+     *
+     * @var string
+     */
+    protected $description;
+    /**
+     * Payer Email Address
+     *
+     * @var string
+     */
+    protected $email;
+    /**
+     * Payer Mobile Number
+     *
+     * @var string
+     */
+    protected $mobileNumber;
+    /**
+     * Address of gate for redirect
+     *
+     * @var string
+     */
+    protected $gateUrl = 'https://www.zarinpal.com/pg/StartPay/';
+    /**
+     * Address of sandbox gate for redirect
+     *
+     * @var string
+     */
+    protected $sandboxGateUrl = 'https://sandbox.zarinpal.com/pg/StartPay/';
+    /**
+     * Address of zarin gate for redirect
+     *
+     * @var string
+     */
+    protected $zarinGateUrl = 'https://www.zarinpal.com/pg/StartPay/$Authority/ZarinGate';
 
-	/**
-	 * Address of zarin gate for redirect
-	 *
-	 * @var string
-	 */
-	protected $zarinGateUrl = 'https://www.zarinpal.com/pg/StartPay/$Authority/ZarinGate';
+    protected  function  setModel(User $user){
+        $this->model = ZarinpalGateway::first();
+    }
 
-	public function boot()
-	{
-		$this->setServer();
-	}
+    protected  function  getModel(){
+        return $this->model;
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function set($amount)
-	{
-		$this->amount = ($amount / 10);
+    public function boot()
+    {
+        $this->setServer();
+    }
 
-		return $this;
-	}
+    /**
+     * Set server for soap transfers data
+     *
+     * @return void
+     */
+    protected function setServer()
+    {
+        $server = $this->model->server;
+        switch ($server) {
+            case 'iran':
+                $this->serverUrl = $this->iranServer;
+                break;
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function ready()
-	{
-		$this->sendPayRequest();
+            case 'test':
+                $this->serverUrl = $this->sandboxServer;
+                $this->gateUrl = $this->sandboxGateUrl;
+                break;
 
-		return $this;
-	}
+            case 'germany':
+            default:
+                $this->serverUrl = $this->germanyServer;
+                break;
+        }
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function redirect()
-	{
-		switch ($this->config->get('gateway.zarinpal.type')) {
-			case 'zarin-gate':
-				return \Redirect::to(str_replace('$Authority', $this->refId, $this->zarinGateUrl));
-				break;
+    /**
+     * {@inheritdoc}
+     */
+    public function set($amount)
+    {
+        $this->amount = ($amount / 10);
 
-			case 'normal':
-			default:
-				return \Redirect::to($this->gateUrl . $this->refId);
-				break;
-		}
-	}
+        return $this;
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function verify($transaction)
-	{
-		parent::verify($transaction);
+    /**
+     * {@inheritdoc}
+     */
+    public function ready()
+    {
+        $this->sendPayRequest();
 
-		$this->userPayment();
-		$this->verifyPayment();
+        return $this;
+    }
 
-		return $this;
-	}
+    /**
+     * Send pay request to server
+     *
+     * @return void
+     *
+     * @throws ZarinpalException
+     */
+    protected function sendPayRequest()
+    {
+        $this->newTransaction();
 
-	/**
-	 * Sets callback url
-	 * @param $url
-	 */
-	function setCallback($url)
-	{
-		$this->callbackUrl = $url;
-		return $this;
-	}
+        $fields = array(
+            'MerchantID' => $this->model->merchant_id,
+            'Amount' => $this->amount,
+            'CallbackURL' => $this->getCallback(),
+            'Description' => $this->description ? $this->description : $this->model->description,
+            'Email' => $this->email ? $this->email : $this->model->email,
+            'Mobile' => $this->mobileNumber ? $this->mobileNumber : $this->model->mobile,
+        );
 
-	/**
-	 * Gets callback url
-	 * @return string
-	 */
-	function getCallback()
-	{
-		if (!$this->callbackUrl)
-			$this->callbackUrl = $this->config->get('gateway.zarinpal.callback-url');
+        try {
+            $soap = new SoapClient($this->serverUrl, ['encoding' => 'UTF-8']);
+            $response = $soap->PaymentRequest($fields);
 
-		return $this->makeCallback($this->callbackUrl, ['transaction_id' => $this->transactionId()]);
-	}
+        } catch (\SoapFault $e) {
+            $this->transactionFailed();
+            $this->newLog('SoapFault', $e->getMessage());
+            throw $e;
+        }
 
-	/**
-	 * Send pay request to server
-	 *
-	 * @return void
-	 *
-	 * @throws ZarinpalException
-	 */
-	protected function sendPayRequest()
-	{
-		$this->newTransaction();
+        if ($response->Status != 100) {
+            $this->transactionFailed();
+            $this->newLog($response->Status, ZarinpalException::$errors[$response->Status]);
+            throw new ZarinpalException($response->Status);
+        }
 
-		$fields = array(
-			'MerchantID' => $this->config->get('gateway.zarinpal.merchant-id'),
-			'Amount' => $this->amount,
-			'CallbackURL' => $this->getCallback(),
-			'Description' => $this->description ? $this->description : $this->config->get('gateway.zarinpal.description', ''),
-			'Email' => $this->email ? $this->email :$this->config->get('gateway.zarinpal.email', ''),
-			'Mobile' => $this->mobileNumber ? $this->mobileNumber : $this->config->get('gateway.zarinpal.mobile', ''),
-		);
+        $this->refId = $response->Authority;
+        $this->transactionSetRefId();
+    }
 
-		try {
-			$soap = new SoapClient($this->serverUrl, ['encoding' => 'UTF-8']);
-			$response = $soap->PaymentRequest($fields);
+    /**
+     * Gets callback url
+     * @return string
+     */
+    function getCallback()
+    {
+        if (!$this->callbackUrl)
+            $this->callbackUrl = $this->model->callback_url;
 
-		} catch (\SoapFault $e) {
-			$this->transactionFailed();
-			$this->newLog('SoapFault', $e->getMessage());
-			throw $e;
-		}
+        return $this->makeCallback($this->callbackUrl, ['transaction_id' => $this->transactionId()]);
+    }
 
-		if ($response->Status != 100) {
-			$this->transactionFailed();
-			$this->newLog($response->Status, ZarinpalException::$errors[$response->Status]);
-			throw new ZarinpalException($response->Status);
-		}
+    /**
+     * {@inheritdoc}
+     */
+    public function redirect()
+    {
+        switch ($this->model->type) {
+            case 'zarin-gate':
+                return \Redirect::to(str_replace('$Authority', $this->refId, $this->zarinGateUrl));
+                break;
 
-		$this->refId = $response->Authority;
-		$this->transactionSetRefId();
-	}
+            case 'normal':
+            default:
+                return \Redirect::to($this->gateUrl . $this->refId);
+                break;
+        }
+    }
 
-	/**
-	 * Check user payment with GET data
-	 *
-	 * @return bool
-	 *
-	 * @throws ZarinpalException
-	 */
-	protected function userPayment()
-	{
-		$this->authority = Request::input('Authority');
-		$status = Request::input('Status');
+    /**
+     * {@inheritdoc}
+     */
+    public function verify($transaction)
+    {
+        parent::verify($transaction);
+//        return $this->getUser();
+        $this->userPayment();
+        $this->verifyPayment();
 
-		if ($status == 'OK') {
-			return true;
-		}
+        return $this;
+    }
 
-		$this->transactionFailed();
-		$this->newLog(-22, ZarinpalException::$errors[-22]);
-		throw new ZarinpalException(-22);
-	}
+    /**
+     * Check user payment with GET data
+     *
+     * @return bool
+     *
+     * @throws ZarinpalException
+     */
+    protected function userPayment()
+    {
+        $this->authority = Request::input('Authority');
+        $status = Request::input('Status');
 
-	/**
-	 * Verify user payment from zarinpal server
-	 *
-	 * @return bool
-	 *
-	 * @throws ZarinpalException
-	 */
-	protected function verifyPayment()
-	{
+        if ($status == 'OK') {
+            return true;
+        }
 
-		$fields = array(
-			'MerchantID' => $this->config->get('gateway.zarinpal.merchant-id'),
-			'Authority' => $this->refId,
-			'Amount' => $this->amount,
-		);
+        $this->transactionFailed();
+        $this->newLog(-22, ZarinpalException::$errors[-22]);
+        throw new ZarinpalException(-22);
+    }
 
-		try {
-			$soap = new SoapClient($this->serverUrl, ['encoding' => 'UTF-8']);
-			$response = $soap->PaymentVerification($fields);
+    /**
+     * Verify user payment from zarinpal server
+     *
+     * @return bool
+     *
+     * @throws ZarinpalException
+     */
+    protected function verifyPayment()
+    {
 
-		} catch (\SoapFault $e) {
-			$this->transactionFailed();
-			$this->newLog('SoapFault', $e->getMessage());
-			throw $e;
-		}
+        $fields = array(
+            'MerchantID' => $this->model->merchant_id,
+            'Authority' => $this->refId,
+            'Amount' => $this->amount,
+        );
 
-		if ($response->Status != 100 && $response->Status != 101) {
-			$this->transactionFailed();
-			$this->newLog($response->Status, ZarinpalException::$errors[$response->Status]);
-			throw new ZarinpalException($response->Status);
-		}
+        try {
+            $soap = new SoapClient($this->serverUrl, ['encoding' => 'UTF-8']);
+            $response = $soap->PaymentVerification($fields);
 
-		$this->trackingCode = $response->RefID;
-		$this->transactionSucceed();
-		$this->newLog($response->Status, Enum::TRANSACTION_SUCCEED_TEXT);
-		return true;
-	}
+        } catch (\SoapFault $e) {
+            $this->transactionFailed();
+            $this->newLog('SoapFault', $e->getMessage());
+            throw $e;
+        }
 
-	/**
-	 * Set server for soap transfers data
-	 *
-	 * @return void
-	 */
-	protected function setServer()
-	{
-		$server = $this->config->get('gateway.zarinpal.server', 'germany');
-		switch ($server) {
-			case 'iran':
-				$this->serverUrl = $this->iranServer;
-				break;
-                
-			case 'test':
-				$this->serverUrl = $this->sandboxServer;
-				$this->gateUrl = $this->sandboxGateUrl;
-				break;
+        if ($response->Status != 100 && $response->Status != 101) {
+            $this->transactionFailed();
+            $this->newLog($response->Status, ZarinpalException::$errors[$response->Status]);
+            throw new ZarinpalException($response->Status);
+        }
 
-			case 'germany':
-			default:
-				$this->serverUrl = $this->germanyServer;
-				break;
-		}
-	}
+        $this->trackingCode = $response->RefID;
+        $this->transactionSucceed();
+        $this->newLog($response->Status, Enum::TRANSACTION_SUCCEED_TEXT);
+        return true;
+    }
 
+    /**
+     * Sets callback url
+     * @param $url
+     */
+    function setCallback($url)
+    {
+        $this->callbackUrl = $url;
+        return $this;
+    }
 
-	/**
-	 * Set Description
-	 *
-	 * @param $description
-	 * @return void
-	 */
-	public function setDescription($description)
-	{
-		$this->description = $description;
-	}
+    /**
+     * Set Description
+     *
+     * @param $description
+     * @return void
+     */
+    public function setDescription($description)
+    {
+        $this->description = $description;
+    }
 
-	/**
-	 * Set Payer Email Address
-	 *
-	 * @param $email
-	 * @return void
-	 */
-	public function setEmail($email)
-	{
-		$this->email = $email;
-	}
+    /**
+     * Set Payer Email Address
+     *
+     * @param $email
+     * @return void
+     */
+    public function setEmail($email)
+    {
+        $this->email = $email;
+    }
 
-	/**
-	 * Set Payer Mobile Number
-	 *
-	 * @param $number
-	 * @return void
-	 */
-	public function setMobileNumber($number)
-	{
-		$this->mobileNumber = $number;
-	}
+    /**
+     * Set Payer Mobile Number
+     *
+     * @param $number
+     * @return void
+     */
+    public function setMobileNumber($number)
+    {
+        $this->mobileNumber = $number;
+    }
 }

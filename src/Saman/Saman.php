@@ -2,6 +2,7 @@
 
 namespace Larabookir\Gateway\Saman;
 
+use App\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Request;
 use SoapClient;
@@ -10,6 +11,13 @@ use Larabookir\Gateway\PortInterface;
 
 class Saman extends PortAbstract implements PortInterface
 {
+    public function __construct(User $user)
+    {
+        parent::__construct();
+        $this->user = $user;
+        $this->model = $user->samanGateway;
+    }
+    
     /**
      *
      * @var Array $optional_data An array of optional data
@@ -70,7 +78,7 @@ class Saman extends PortAbstract implements PortInterface
     {
         $main_data = [
             'amount'        => $this->amount,
-            'merchant'      => $this->config->get('gateway.saman.merchant'),
+            'merchant'      => $this->model->merchant,
             'resNum'        => $this->transactionId(),
             'callBackUrl'   => $this->getCallback()
         ];
@@ -110,7 +118,7 @@ class Saman extends PortAbstract implements PortInterface
     function getCallback()
     {
         if (!$this->callbackUrl)
-            $this->callbackUrl = $this->config->get('gateway.saman.callback-url');
+            $this->callbackUrl = $this->model->callback_url;
 
         $url = $this->makeCallback($this->callbackUrl, ['transaction_id' => $this->transactionId()]);
 
@@ -161,9 +169,9 @@ class Saman extends PortAbstract implements PortInterface
     protected function verifyPayment()
     {
         $fields = array(
-            "merchantID" => $this->config->get('gateway.saman.merchant'),
+            "merchantID" => $this->model->merchant,
             "RefNum" => $this->refId,
-            "password" => $this->config->get('gateway.saman.password'),
+            "password" => $this->model->password,
         );
 
         try {

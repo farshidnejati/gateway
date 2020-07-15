@@ -2,6 +2,7 @@
 
 namespace Larabookir\Gateway\Mellat;
 
+use App\User;
 use DateTime;
 use Illuminate\Support\Facades\Request;
 use Larabookir\Gateway\Enum;
@@ -11,6 +12,13 @@ use Larabookir\Gateway\PortInterface;
 
 class Mellat extends PortAbstract implements PortInterface
 {
+    public function __construct(User $user)
+    {
+        parent::__construct();
+        $this->user = $user;
+        $this->model = $user->mellatGateway;
+    }
+    
 	/**
 	 * Address of main SOAP server
 	 *
@@ -79,7 +87,7 @@ class Mellat extends PortAbstract implements PortInterface
 	function getCallback()
 	{
 		if (!$this->callbackUrl)
-			$this->callbackUrl = $this->config->get('gateway.mellat.callback-url');
+			$this->callbackUrl = $this->model->callback_url;
 
 		return $this->makeCallback($this->callbackUrl, ['transaction_id' => $this->transactionId()]);
 	}
@@ -98,9 +106,9 @@ class Mellat extends PortAbstract implements PortInterface
 		$this->newTransaction();
 
 		$fields = array(
-			'terminalId' => $this->config->get('gateway.mellat.terminalId'),
-			'userName' => $this->config->get('gateway.mellat.username'),
-			'userPassword' => $this->config->get('gateway.mellat.password'),
+			'terminalId' => $this->model->terminalId,
+			'userName' => $this->model->username,
+			'userPassword' => $this->model->password,
 			'orderId' => $this->transactionId(),
 			'amount' => $this->amount,
 			'localDate' => $dateTime->format('Ymd'),
@@ -165,9 +173,9 @@ class Mellat extends PortAbstract implements PortInterface
 	protected function verifyPayment()
 	{
 		$fields = array(
-			'terminalId' => $this->config->get('gateway.mellat.terminalId'),
-			'userName' => $this->config->get('gateway.mellat.username'),
-			'userPassword' => $this->config->get('gateway.mellat.password'),
+			'terminalId' => $this->model->terminalId,
+			'userName' => $this->model->username,
+			'userPassword' => $this->model->password,
 			'orderId' => $this->transactionId(),
 			'saleOrderId' => $this->transactionId(),
 			'saleReferenceId' => $this->trackingCode()
@@ -203,9 +211,9 @@ class Mellat extends PortAbstract implements PortInterface
 	protected function settleRequest()
 	{
 		$fields = array(
-			'terminalId' => $this->config->get('gateway.mellat.terminalId'),
-			'userName' => $this->config->get('gateway.mellat.username'),
-			'userPassword' => $this->config->get('gateway.mellat.password'),
+			'terminalId' => $this->model->terminalId,
+			'userName' => $this->model->username,
+			'userPassword' => $this->model->password,
 			'orderId' => $this->transactionId(),
 			'saleOrderId' => $this->transactionId(),
 			'saleReferenceId' => $this->trackingCode
