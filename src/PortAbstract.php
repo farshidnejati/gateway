@@ -1,18 +1,32 @@
 <?php
 namespace Larabookir\Gateway;
 
+use App\User;
 use Illuminate\Support\Facades\Request;
 use Larabookir\Gateway\Enum;
 use Carbon\Carbon;
 
 abstract class PortAbstract
 {
-	/**
-	 * Transaction id
-	 *
-	 * @var null|int
-	 */
-	protected $transactionId = null;
+    /**
+     * user 
+     *
+     * @var null|User
+     */
+    protected $user;
+
+    protected  $model;
+    /**
+     * @var user gateway
+     */
+    protected $gateway;
+    
+    /**
+     * Transaction id
+     *
+     * @var null|int
+     */
+    protected $transactionId = null;
 
 	/**
 	 * Transaction row in database
@@ -26,10 +40,10 @@ abstract class PortAbstract
 	 */
 	protected $cardNumber = '';
 
-	/**
-	 * @var Config
-	 */
-	protected $config;
+    /**
+     * @var Config
+     */
+    protected $config;
 
 	/**
 	 * Port id
@@ -110,13 +124,27 @@ abstract class PortAbstract
 		return $this->db->table($this->config->get('gateway.table'));
 	}
 
-	/**
-	 * @return mixed
-	 */
-	function getLogTable()
-	{
-		return $this->db->table($this->config->get('gateway.table') . '_logs');
-	}
+    /**
+     * @return mixed
+     */
+    public function setUser(User $user)
+    {
+        $this->user = $user;
+    }
+
+    public function getUser()
+    {
+        return $this->user;
+    }
+
+
+    /**
+     * @return mixed
+     */
+    function getLogTable()
+    {
+        return $this->db->table($this->config->get('gateway.table') . '_logs');
+    }
 
 	/**
 	 * Get port id, $this->port
@@ -252,6 +280,7 @@ abstract class PortAbstract
 		$this->transactionId = $transaction->id;
 		$this->amount = intval($transaction->price);
 		$this->refId = $transaction->ref_id;
+		$this->user = User::find($transaction->user_id);
 	}
 
 	function getTimeId()
@@ -276,6 +305,7 @@ abstract class PortAbstract
 
 		$this->transactionId = $this->getTable()->insert([
 			'id' 			=> $uid,
+			'user_id' 		=> $this->user->id,
 			'port' 			=> $this->getPortName(),
 			'price' 		=> $this->amount,
 			'status' 		=> Enum::TRANSACTION_INIT,
