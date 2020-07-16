@@ -26,54 +26,72 @@
 ----------  
   
   
-**نصب**:  
-  
-دستورات زیر را جهت نصب دنبال کنید :  
-  
-**مرحله ۱)**  
-  
- composer require larabook/gateway    
-**مرحله ۲)**  
-  
-  تغییرات زیر را در فایل config/app.php اعمال نمایید:  
-  
-**توجه برای نسخه های لاراول ۶ به بعد  این مرحله نیاز به انجام نمی باشد**   
-</div>  
-  
-```php  
-  
-'providers' => [  
-  ...  
-  Larabookir\Gateway\GatewayServiceProvider::class, // <-- add this line at the end of provider array  
-],  
-  
-  
-'aliases' => [  
-  ...  
-  'Gateway' => Larabookir\Gateway\Gateway::class, // <-- add this line at the end of aliases array  
-]  
-  
-```  
-  
-  
-  
-<div dir="rtl">  
-  
-**مرحله ۳) - انتقال فایل های مورد نیاز**  
-  
-برای لاراول ۵ :  
-</div>  
-  
- php artisan vendor:publish --provider=Larabookir\Gateway\GatewayServiceProviderLaravel5  
-  
-<div dir="rtl">  
-برای لاراول ۶ به بعد :  
-</div>  
-  
- php artisan vendor:publish   
-  
-<div dir="rtl">  
-سپس این گزینه را انتخاب کنید :  "Larabookir\Gateway\GatewayServiceProviderLaravel6"  
+**نصب**:
+
+دستورات زیر را جهت نصب دنبال کنید :
+
+**مرحله ۱)**
+
+</div>
+
+
+```php
+
+composer require larabook/gateway
+
+```   
+
+<div dir="rtl">
+ 
+**مرحله ۲)**
+
+    تغییرات زیر را در فایل  config/app.php اعمال نمایید:
+
+**توجه برای نسخه های لاراول ۶ به بعد  این مرحله نیاز به انجام نمی باشد** 
+
+</div>
+
+```php
+
+'providers' => [
+  ...
+  Larabookir\Gateway\GatewayServiceProvider::class, // <-- add this line at the end of provider array
+],
+
+
+'aliases' => [
+  ...
+  'Gateway' => Larabookir\Gateway\Gateway::class, // <-- add this line at the end of aliases array
+]
+
+```
+
+
+
+<div dir="rtl">
+
+**مرحله ۳) - انتقال فایل های مورد نیاز**
+
+برای لاراول ۵ :
+</div>
+
+```php
+
+php artisan vendor:publish --provider=Larabookir\Gateway\GatewayServiceProviderLaravel5
+
+```
+
+<div dir="rtl">
+برای لاراول ۶ به بعد :
+</div>
+
+```php
+
+php artisan vendor:publish 
+
+// then choose : GatewayServiceProviderLaravel6
+
+``` 
   
   
 **مرحله ۴) - تنظیم نام جداول**  
@@ -87,7 +105,8 @@
  php artisan migrate  
   
   
-**مرحله ٦)**    سپس به مدل کاربر خود رفته و توابع زیر را برای دسترسی مدل کاربر به درگاه های پرداخت وارد نمایید.
+**مرحله ٦)**
+    سپس به مدل کاربر خود رفته و توابع زیر را برای دسترسی مدل کاربر به درگاه های پرداخت وارد نمایید.
 
 ```php  
 
