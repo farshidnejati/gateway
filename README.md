@@ -1,3 +1,4 @@
+
 <div dir="rtl">
 
 
@@ -115,15 +116,15 @@ php artisan vendor:publish
  
  php artisan migrate  
  
- ```
+``` 
   
-  <div dir="rtl">
+<div dir="rtl">
 
   
 **مرحله ٦)**
     سپس به مدل کاربر خود رفته و توابع زیر را برای دسترسی مدل کاربر به درگاه های پرداخت وارد نمایید.
     
-    </div>
+</div>
 
 
 ```php  
