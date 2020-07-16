@@ -176,9 +176,13 @@ public function asanPardakhtGateway()
   
 ``` 
 
+<div dir="rtl">
+
+
 **مرحله ٧)**  
   
 حال میتوایند برای اتصال به api  بانک  با ارسال شیء کاربر از جدول کاربران خود، از یکی از روش های زیر به انتخاب خودتان استفاده نمایید . (Facade , Service container):  
+
 </div>  
    
  1. \$mellat = new Mellat($user);  
@@ -267,7 +271,6 @@ try {
   
 ```  
 
-<hr>
 
 <div dir="rtl">  
 
